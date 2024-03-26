@@ -4,3 +4,6 @@ idna==3.6
 requests==2.31.0
 riotwatcher==3.2.5
 urllib3==2.1.0
+
+numpy~=1.26.4
+tslearn~=0.6.3
