@@ -1,0 +1,10 @@
+version: "3.8"
+services:
+  app:
+    build: ./
+    image: winnable:latest
+    volumes: 
+      - ./:/app/
+    ports: 
+      - 2999:2999
+    command: ["tail", "-f", "/dev/null"]
