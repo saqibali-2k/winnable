@@ -102,7 +102,18 @@ def main():
     num_samples_per_rank = 20
 
     match_info_dir = Path.cwd() / 'matches' / 'match_info'
+
+    try:
+        match_info_dir.mkdir(parents=True, exist_ok=True)
+    except FileExistsError:
+        print("The specified path to the match info directory already exists exists and is not a directory.")
+
     match_timeline_dir = Path.cwd() / 'matches' / 'match_timeline'
+
+    try:
+        match_timeline_dir.mkdir(parents=True, exist_ok=True)
+    except FileExistsError:
+        print("The specified path to the match timeline directory already exists and is not a directory.")
 
     generate_data(region, queue, non_apex_ranks, divisions,
                   min_page, max_page, num_samples_per_rank, match_info_dir, match_timeline_dir)
