@@ -6,6 +6,14 @@ import numpy as np
 
 
 def generate_time_series_features(timeline, features_list):
+    """Generate a multivariate time series with the given features as individual variables
+
+    :param timeline: Dict containing the match timeline
+    :param features_list: Iterable containing instances of ParticipantFeature or derived classes corresponding to
+    features to be added to the time series
+    :return: Time series as a 2D list, where columns correspond to feature observations (with the first column being
+    the timestamp), and rows corresponding to the timestamp of the observations
+    """
     time_series = []
 
     feature_manager = features.TimelineFeatureManager(features_list)
@@ -22,12 +30,18 @@ def generate_time_series_features(timeline, features_list):
     return time_series
 
 
-def generate_dataset_from_files(match_info_dir, match_timeline_dir):
+def generate_dataset_from_files(match_info_dir, match_timeline_dir, features_list):
+    """Generate dataset of multivariate time series with labels, with the given features as variables
+
+    :param match_info_dir: Path to the directory containing the match info JSON files
+    :param match_timeline_dir: Path to the directory containing the match timeline JSON files
+    :param features_list: Iterable containing instances of ParticipantFeature or derived classes corresponding to
+    features to be added to the time series
+    :return: Tuple (X, y), where X is a 3D numpy array with shape (number of time series, max length of the time series,
+    dimension), and Y is a 1D list of labels
+    """
     X = []
     y = []
-
-    features_list = [features.TimelineTotalCSDiff(), features.GeneralStatDiff("totalGold"),
-                     features.GeneralStatDiff("level")]
 
     for match_info_filepath in match_info_dir.iterdir():
         try:
@@ -56,6 +70,9 @@ def generate_dataset_from_files(match_info_dir, match_timeline_dir):
 def main():
     match_info_dir = Path.cwd() / 'matches' / 'match_info'
     match_timeline_dir = Path.cwd() / 'matches' / 'match_timeline'
+
+    features_list = [features.TimelineTotalCSDiff(), features.GeneralStatDiff("totalGold"),
+                     features.GeneralStatDiff("level")]
 
     X, y = generate_dataset_from_files(match_info_dir, match_timeline_dir)
 
