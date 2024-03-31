@@ -74,7 +74,7 @@ def main():
     features_list = [features.TimelineTotalCSDiff(), features.GeneralStatDiff("totalGold"),
                      features.GeneralStatDiff("level")]
 
-    X, y = generate_dataset_from_files(match_info_dir, match_timeline_dir)
+    X, y = generate_dataset_from_files(match_info_dir, match_timeline_dir, features_list)
 
     dataset_filepath = Path.cwd() / 'matches' / 'dataset' / 'dataset_good'
     dataset_labels_filepath = Path.cwd() / 'matches' / 'dataset' / 'dataset_labels_good'
