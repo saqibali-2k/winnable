@@ -1,0 +1,4 @@
+[training]
+data_dir = "./matches"
+elder_spawn = 250
+baron_spawn = 300
