@@ -18,7 +18,7 @@ class Item:
     def __init__(self, data: dict, itemsInfo: dict):
         self.itemID = data["itemID"]
         self.displayName = data["displayName"]
-        self.itemCost = itemsInfo[itemsInfo["data"][self.itemID]["gold"]["total"]]
+        self.itemCost = itemsInfo["data"][str(self.itemID)]["gold"]["total"]
 
 
 class Rune:
@@ -36,9 +36,9 @@ class Rune:
     secondaryPath: int
 
     def __init__(self, data: dict):
-        self.keystone = data["keystone"]
-        self.primaryPath = data["primaryPath"]
-        self.secondaryPath = data["secondaryPath"]
+        self.keystone = data["keystone"]["id"]
+        self.primaryPath = data["primaryRuneTree"]["id"]
+        self.secondaryPath = data["secondaryRuneTree"]["id"]
 
 
 class SummonerSpell:
@@ -46,16 +46,16 @@ class SummonerSpell:
     Represents the summoner spells used by a player.
 
     Attributes:
-        spell1Id (int): The ID of the first summoner spell.
-        spell2Id (int): The ID of the second summoner spell.
+        spell1Id (str): The first summoner spell.
+        spell2Id (str): The second summoner spell.
     """
 
-    spell1Id: int
-    spell2Id: int
+    spell1Id: str
+    spell2Id: str
 
     def __init__(self, data: dict):
-        self.spell1Id = data["spell1Id"]
-        self.spell2Id = data["spell2Id"]
+        self.spell1Id = data["summonerSpellOne"]["displayName"]
+        self.spell2Id = data["summonerSpellTwo"]["displayName"]
 
 
 class Scores:
@@ -113,7 +113,8 @@ class Player:
     isDead: bool
     items: List[Item]
     level: int
-    position: Optional[str]
+    # Might be undefined in blind pick, not sure
+    position: str
     rawChampionName: str
     respawnTimer: float
     runes: Rune
@@ -125,7 +126,6 @@ class Player:
     riotIdTagLine: Optional[str]
     summonerSpells: SummonerSpell
     team: str
-    positionIndex: int
 
     def __init__(self, data: dict, itemsInfo: dict):
         self.championName = data["championName"]
@@ -133,7 +133,8 @@ class Player:
         self.isDead = data["isDead"]
         self.items = [Item(item_data, itemsInfo) for item_data in data["items"]]
         self.level = data["level"]
-        self.position = data.get("position")
+        position = data.get("position", "MIDDLE")
+        self.position = position if position != "" else "JUNGLE"
         self.rawChampionName = data["rawChampionName"]
         self.respawnTimer = data["respawnTimer"]
         self.runes = Rune(data["runes"])
@@ -164,6 +165,7 @@ class LiveEvent:
     victimName: Optional[str]
     assisters: Optional[List[str]]
     dragonType: Optional[str]
+    turretKilled: Optional[str]
 
     def __init__(self, data: dict):
         self.eventName = data["EventName"]
@@ -172,6 +174,7 @@ class LiveEvent:
         self.victimName = data.get("VictimName")
         self.assisters = data.get("Assisters", [])
         self.dragonType = data.get("DragonType")
+        self.turretKilled = data.get("TurretKilled")
 
     def __eq__(self, value: object) -> bool:
         if not isinstance(value, LiveEvent):
@@ -192,6 +195,6 @@ class LiveFrame:
         self, timestamp: int, eventsData: dict, playersData: dict, itemsInfo: dict
     ):
         # Initialize the events list with Event objects
-        self.timestamp = timestamp
-        self.events = [LiveEvent(eventData) for eventData in eventsData]
+        self.timestamp = timestamp * 60000
+        self.events = [LiveEvent(eventData) for eventData in eventsData["Events"]]
         self.players = [Player(playerData, itemsInfo) for playerData in playersData]

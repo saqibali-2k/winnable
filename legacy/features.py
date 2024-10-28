@@ -27,7 +27,7 @@ class Diff(ParticipantFeature):
         pass
 
     def calculate_team_multiplier(self, participant_id):
-        if int(participant_id) > 5:
+        if int(participant_id) >= 5:
             self.team_multiplier = -1
 
     def reset_class_values(self):
@@ -36,7 +36,7 @@ class Diff(ParticipantFeature):
 
 
 class GeneralStatDiff(Diff):
-    def __init__(self, stat):
+    def __init__(self, stat: str):
         super().__init__()
         self.stat = stat
 
@@ -50,16 +50,16 @@ class TimelineChampionStatDiff(Diff):
         self.stat = stat
 
     def calculate_value(self, participant):
-        self.value += participant['championStats'].get(self.stat) * self.team_multiplier
+        self.value += participant["championStats"].get(self.stat) * self.team_multiplier
 
 
 class TimelineDamageStatDiff(Diff):
-    def __init__(self, stat):
+    def __init__(self, stat: str):
         super().__init__()
         self.stat = stat
 
     def calculate_value(self, participant):
-        self.value += participant['damageStats'].get(self.stat) * self.team_multiplier
+        self.value += participant["damageStats"].get(self.stat) * self.team_multiplier
 
 
 class TimelineTotalCSDiff(Diff):
@@ -67,8 +67,9 @@ class TimelineTotalCSDiff(Diff):
         super().__init__()
 
     def calculate_value(self, participant):
-        self.value += (participant.get('jungleMinionsKilled') +
-                       participant.get('minionsKilled')) * self.team_multiplier
+        self.value += (
+            participant.get("jungleMinionsKilled") + participant.get("minionsKilled")
+        ) * self.team_multiplier
 
 
 class LiveScoreDiff(Diff):
@@ -77,7 +78,7 @@ class LiveScoreDiff(Diff):
         self.stat = stat
 
     def calculate_value(self, participant):
-        self.value += participant['scores'].get(self.stat) * self.team_multiplier
+        self.value += participant["scores"].get(self.stat) * self.team_multiplier
 
 
 class LiveItemCostDiff(Diff):
@@ -90,9 +91,8 @@ class LiveItemCostDiff(Diff):
     def calculate_value(self, participant):
         total_item_cost = 0
         for item in participant["items"]:
-            item_id = str(item['itemID'])
-            total_item_cost += self.item_data['data'][item_id]['gold']['total']
-
+            item_id = str(item["itemID"])
+            total_item_cost += self.item_data["data"][item_id]["gold"]["total"]
         self.value += total_item_cost * self.team_multiplier
 
 
@@ -113,7 +113,7 @@ class FeatureManager(ABC):
 
 class TimelineFeatureManager(FeatureManager):
     def calculate_features_for_frame(self):
-        for participant_id, participant in self.frame['participantFrames'].items():
+        for participant_id, participant in self.frame["participantFrames"].items():
             for feature in self.features:
                 feature.calculate_team_multiplier(participant_id)
                 feature.calculate_value(participant)
@@ -123,15 +123,10 @@ class TimelineFeatureManager(FeatureManager):
 
 class LiveFeatureManager(FeatureManager):
     def calculate_features_for_frame(self):
-        for participant_id, participant in enumerate(self.frame['playerInfo']):
+        self.reset_feature_values()
+        for participant_id, participant in enumerate(self.frame["playerInfo"]):
             for feature in self.features:
                 feature.calculate_team_multiplier(participant_id)
                 feature.calculate_value(participant)
 
         self.feature_values = [feature.value for feature in self.features]
-
-
-
-
-
-

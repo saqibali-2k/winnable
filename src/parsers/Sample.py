@@ -27,17 +27,26 @@ class Sample:
         gameFeatures: Dict[FeatureKeys, GameStat],
         teamFeatures: Dict[FeatureKeys, TeamStat],
         flipTeam=False,
+        debug=False,
     ):
         team1Features: List[Union[float, int]] = []
         team2Features: List[Union[float, int]] = []
         gameValues: List[Union[float, int]] = []
+        if debug:
+            print("STATS:")
         for key in FeatureKeys:
             if key in gameFeatures:
-                gameValues += [gameFeatures[key].getValue()]
+                val = gameFeatures[key].getValue()
+                gameValues += [val]
+                if debug:
+                    print(f"   {key}: {val}")
+
             else:
                 team1, team2 = teamFeatures[key].getValue(flipTeam=flipTeam)
                 team1Features += [team1]
                 team2Features += [team2]
+                if debug:
+                    print(f"   {key}: team: {team1}, enemy: {team2}")
         self.teamValues = np.array([team1Features, team2Features])
         self.gameValues = np.array(gameValues)
 

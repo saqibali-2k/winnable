@@ -1,7 +1,6 @@
 from typing import Dict, List, Optional, Tuple
 from src.parsers.Frame import Event, Frame
-from src.parsers.ParserInterface import Parser
-from src.Sample import Sample
+from src.parsers.Sample import Sample
 from src.features.features import (
     AlivePlayers,
     BuffRemaining,
@@ -18,7 +17,7 @@ from src.features.features import (
 )
 
 
-class OfflineParser(Parser):
+class OfflineParser:
     """An implementation of the Parser interface that enables collection of 'offline' data.
 
     Parses data from the MATCHv5 endpoint and creates samples for training.

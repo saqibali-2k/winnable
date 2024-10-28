@@ -18,11 +18,11 @@ def generate_time_series_features(timeline, features_list):
 
     feature_manager = features.TimelineFeatureManager(features_list)
 
-    for frame in timeline['info']['frames']:
+    for frame in timeline["info"]["frames"]:
         feature_manager.frame = frame
         feature_manager.calculate_features_for_frame()
 
-        time_series_row = [frame['timestamp']] + feature_manager.feature_values
+        time_series_row = [frame["timestamp"]] + feature_manager.feature_values
         time_series.append(time_series_row)
 
         feature_manager.reset_feature_values()
@@ -30,7 +30,9 @@ def generate_time_series_features(timeline, features_list):
     return time_series
 
 
-def generate_dataset_from_files(match_info_dir, match_timeline_dir, features_list):
+def generate_dataset_from_files(
+    match_info_dir, match_timeline_dir, features_list, time_series=True
+):
     """Generate dataset of multivariate time series with labels, with the given features as variables
 
     :param match_info_dir: Path to the directory containing the match info JSON files
@@ -46,20 +48,29 @@ def generate_dataset_from_files(match_info_dir, match_timeline_dir, features_lis
     for match_info_filepath in match_info_dir.iterdir():
         try:
             if match_info_filepath.is_file():
-                with match_info_filepath.open(mode='r', encoding='utf-8') as match_info_f:
+                with match_info_filepath.open(
+                    mode="r", encoding="utf-8"
+                ) as match_info_f:
                     match_info = json.load(match_info_f)
 
-                match_id = match_info['metadata']['matchId']
-                match_timeline_filepath = match_timeline_dir / ("match_timeline_" + match_id + '.json')
+                match_id = match_info["metadata"]["matchId"]
+                match_timeline_filepath = match_timeline_dir / (
+                    "match_timeline_" + match_id + ".json"
+                )
 
-                with match_timeline_filepath.open(mode='r', encoding='utf-8') as match_timeline_f:
+                with match_timeline_filepath.open(
+                    mode="r", encoding="utf-8"
+                ) as match_timeline_f:
                     match_timeline = json.load(match_timeline_f)
 
                 sample = generate_time_series_features(match_timeline, features_list)
-                X.append(sample)
-
-                sample_label = int(match_info['info']['participants'][1]['win'])
-                y.append(sample_label)
+                sample_label = int(match_info["info"]["participants"][1]["win"])
+                if not time_series:
+                    X.extend(sample)
+                    y.extend([sample_label] * len(sample))
+                else:
+                    X.append(sample)
+                    y.append(sample_label)
         except IOError:
             pass
 
@@ -68,16 +79,24 @@ def generate_dataset_from_files(match_info_dir, match_timeline_dir, features_lis
 
 
 def main():
-    match_info_dir = Path.cwd() / 'matches' / 'match_info'
-    match_timeline_dir = Path.cwd() / 'matches' / 'match_timeline'
+    match_info_dir = Path.cwd() / "matches" / "match_info"
+    match_timeline_dir = Path.cwd() / "matches" / "match_timeline"
 
-    features_list = [features.TimelineTotalCSDiff(), features.GeneralStatDiff("totalGold"),
-                     features.GeneralStatDiff("level")]
+    features_list = [
+        features.TimelineTotalCSDiff(),
+        features.GeneralStatDiff("totalGold"),
+        features.GeneralStatDiff("level"),
+    ]
 
-    X, y = generate_dataset_from_files(match_info_dir, match_timeline_dir, features_list)
+    X, y = generate_dataset_from_files(
+        match_info_dir, match_timeline_dir, features_list, time_series=False
+    )
 
-    dataset_filepath = Path.cwd() / 'matches' / 'dataset' / 'dataset_good'
-    dataset_labels_filepath = Path.cwd() / 'matches' / 'dataset' / 'dataset_labels_good'
+    processed_dataset_dir = Path.cwd() / "matches" / "dataset"
+    processed_dataset_dir.mkdir(parents=True, exist_ok=True)
+
+    dataset_filepath = processed_dataset_dir / "dataset_good.npy"
+    dataset_labels_filepath = processed_dataset_dir / "dataset_labels_good.npy"
 
     np.save(dataset_filepath, X)
     np.save(dataset_labels_filepath, y)

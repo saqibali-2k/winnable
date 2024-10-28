@@ -4,9 +4,13 @@ from typing import List
 import numpy as np
 from tqdm import tqdm
 
-from src.Sample import SampleFormatting
+from src.parsers.Sample import SampleFormatting
 from src.parsers.OfflineParser import OfflineParser
 from src.parsers.Frame import Frame
+
+processed_dataset_dir = Path.cwd() / "matches" / "dataset"
+DATASET_FILEPATH = processed_dataset_dir / "dataset_good.npy"
+DATASET_LABELS_FILEPATH = processed_dataset_dir / "dataset_labels_good.npy"
 
 
 def generate_time_series_features(timeline):
@@ -24,7 +28,6 @@ def generate_time_series_features(timeline):
     sample = parser.getNextFrame()
     while sample:
         time_series += [sample.getValue(SampleFormatting.TAKE_DIFF)]
-        print(time_series[-1])
         sample = parser.getNextFrame()
     return time_series
 
@@ -54,7 +57,6 @@ def generate_dataset_from_files(
                 match_timeline_filepath = match_timeline_dir / (
                     "match_timeline_" + match_id + ".json"
                 )
-                print(match_timeline_filepath)
 
                 with match_timeline_filepath.open(
                     mode="r", encoding="utf-8"
@@ -82,14 +84,12 @@ def main():
         match_info_dir, match_timeline_dir, time_series=False
     )
 
-    processed_dataset_dir = Path.cwd() / "matches" / "dataset"
     processed_dataset_dir.mkdir(parents=True, exist_ok=True)
 
-    dataset_filepath = processed_dataset_dir / "dataset_good.npy"
-    dataset_labels_filepath = processed_dataset_dir / "dataset_labels_good.npy"
-    print(len(X), X[0].shape, len(y))
-    np.save(dataset_filepath, X)
-    np.save(dataset_labels_filepath, y)
+    print(f"Number of Samples and labels {len(X)},{len(y)}")
+    print(f"Shape of features: {X[0].shape}")
+    np.save(DATASET_FILEPATH, X)
+    np.save(DATASET_LABELS_FILEPATH, y)
 
 
 if __name__ == "__main__":

@@ -1,6 +1,6 @@
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Literal, Optional, Tuple
 from src.parsers.LiveFrame import LiveEvent, LiveFrame, Player
-from src.Sample import Sample
+from src.parsers.Sample import Sample
 from src.features.features import (
     AlivePlayers,
     BuffRemaining,
@@ -9,11 +9,20 @@ from src.features.features import (
     GameStat,
     GoldPercentage,
     PlayersWithActiveBuff,
+    TeamHasDragonSoul,
     TeamStat,
     TimeStamp,
     TotalTeamLevel,
     TowerKills,
 )
+
+positionToIndex = {
+    "TOP": 0,
+    "JUNGLE": 1,
+    "MIDDLE": 2,
+    "BOTTOM": 3,
+    "UTILITY": 4,  # OMEGALUL
+}
 
 
 class LiveParser:
@@ -39,7 +48,10 @@ class LiveParser:
     _playerHasBaron: List[bool]
     _towersTaken: Tuple[int, int]
 
-    def __init__(self) -> None:
+    _flipTeam: bool
+
+    def __init__(self, flipTeam=False) -> None:
+        self._flipTeam = flipTeam
         self.setDefaults()
 
     def setDefaults(self) -> None:
@@ -58,17 +70,8 @@ class LiveParser:
     def getTotalGold(self, frame: LiveFrame) -> int:
         totalGold = 0
         for player in frame.players:
-            total += player.getTotalItemsValue()
+            totalGold += player.getTotalItemsValue()
         return totalGold
-
-    def getTeamFromPlayerName(self, name: str, players: List[Player]) -> str:
-        team = None
-        for player in players:
-            if name == player.summonerName:
-                team = player.team
-                break
-        assert team is not None
-        return team
 
     def getBaronBuffDurationByTeam(self):
         team1HasBaron = True in self._playerHasBaron[:5]
@@ -109,16 +112,19 @@ class LiveParser:
                 newEvents.append(event)
         return newEvents
 
-    def processBuildingKill(self, event: LiveEvent, players: List[Player]):
-        killerTeam = self.getTeamFromPlayerName(event.killerName, players)  # type: ignore
-        team1 = self._towersTaken[0] + int(killerTeam == "ORDER")
-        team2 = self._towersTaken[1] + int(killerTeam == "CHAOS")
+    def processBuildingKill(self, event: LiveEvent):
+        teamOfTurret = getTeamFromTurretName(event.turretKilled)  # type: ignore
+        team1 = self._towersTaken[0] + int(teamOfTurret == "CHAOS")
+        team2 = self._towersTaken[1] + int(teamOfTurret == "ORDER")
         self._towersTaken = (team1, team2)
 
     def processChampionKill(self, event: LiveEvent, players: List[Player]):
         playerIndex = -1
         for i, player in enumerate(players):
-            if event.victimName == player.summonerName:
+            if (
+                event.victimName == player.summonerName
+                or event.victimName == player.riotIdGameName
+            ):
                 playerIndex = i
                 break
         assert playerIndex > -1
@@ -127,7 +133,7 @@ class LiveParser:
 
     def processDragonKill(self, event: LiveEvent, currTime: int, players: List[Player]):
         elapsed = currTime - event.eventTime
-        killerTeam = self.getTeamFromPlayerName(event.killerName, players)  # type: ignore
+        killerTeam = getTeamFromPlayerName(event.killerName, players)  # type: ignore
         if event.dragonType == "Elder":
             self._elderBuffTimeLeft = self._elderBuffDurationInMS - elapsed
             teamOffset = 0 if killerTeam == "ORDER" else 5
@@ -143,40 +149,16 @@ class LiveParser:
     def processBaronKill(self, event: LiveEvent, currTime: int, players: List[Player]):
         elapsed = currTime - event.eventTime
         self._baronBuffTimeLeft = self._baronBuffDurationInMS - elapsed
-        killerTeam = self.getTeamFromPlayerName(event.killerName, players)  # type: ignore
+        killerTeam = getTeamFromPlayerName(event.killerName, players)  # type: ignore
         teamOffset = 0 if killerTeam == "ORDER" else 5
         for i in range(5):
             self._playerHasBaron[i + teamOffset] = True
-
-    # def processEliteMonsterKill(self, event: LiveEvent, currTime: int):
-    #     elapsed = currTime - event.eventTime
-    #     playerBuffStatus = []
-    #     if event.monsterType == "BARON_NASHOR":
-    #         self._baronBuffTimeLeft = self._baronBuffDurationInMS - elapsed
-    #         playerBuffStatus = self._playerHasBaron
-    #     elif event.monsterType == "DRAGON" and event.monsterSubType == "ELDER_DRAGON":
-    #         self._elderBuffTimeLeft = self._edlerBuffDurationInMS - elapsed
-    #         playerBuffStatus = self._playerHasElder
-    #     elif event.monsterType == "DRAGON":
-    #         team1 = self._dragonsTaken[0] + int(event.killerTeamId == 100)
-    #         team2 = self._dragonsTaken[1] + int(event.killerTeamId == 200)
-    #         self._dragonsTaken = (team1, team2)
-    #     else:
-    #         # Could also be void grubs - not yet considered
-    #         return
-
-    #     teamOffset = 0 if event.killerTeamId == 100 else 5
-    #     for player in range(1, 6):
-    #         playerBuffStatus[player + teamOffset] = True
-
-    # def processDragonSoulGiven(self, event: Event):
-    #     self._dragonSoulTaken = event.teamId // 100  # type: ignore
 
     def processEvents(self, frame: LiveFrame):
         newEvents = self.getOnlyNewEvents(currFrame=frame)
         for event in newEvents:
             if event.eventName == "TurretKilled":
-                self.processBuildingKill(event, frame.players)
+                self.processBuildingKill(event)
             elif event.eventName == "ChampionKill":
                 self.processChampionKill(event, frame.players)
             elif event.eventName == "DragonKill":
@@ -189,6 +171,7 @@ class LiveParser:
 
     def getNextFrame(self, currFrame: LiveFrame) -> Optional[Sample]:
         self.processTime(currFrame.timestamp)
+        self.processEvents(currFrame)
 
         # Gold % (player gold / total gold in game)
         totalGold = self.getTotalGold(currFrame)
@@ -204,33 +187,31 @@ class LiveParser:
         # # of players with Elder active
         numOfPlayersWithElderTeam1 = 0
         numOfPlayersWithElderTeam2 = 0
-        goldPercentages: List[GoldPercentage] = []
-        for player in range(5):
-            enemyPlayer = player + 5
-            playerGoldTeam1 = currFrame.players[player].getTotalItemsValue()
-            playerGoldTeam2 = currFrame.players[enemyPlayer].getTotalItemsValue()
-            goldPercentages += [
-                GoldPercentage(
-                    totalGold,
-                    playerGoldTeam1,
-                    playerGoldTeam2,
-                )
-            ]
-            totalLevelTeam1 += currFrame.players[player].level
-            totalLevelTeam2 += currFrame.players[enemyPlayer].level
-            totalPlayersAliveTeam1 += currFrame.players[player].isDead
-            totalPlayersAliveTeam2 += currFrame.players[enemyPlayer].isDead
-            numOfPlayersWithBaronTeam1 += self._playerHasBaron[player]
-            numOfPlayersWithBaronTeam2 += self._playerHasBaron[enemyPlayer]
-            numOfPlayersWithElderTeam1 += self._playerHasElder[player]
-            numOfPlayersWithElderTeam2 += self._playerHasElder[enemyPlayer]
+        goldPercentages: List[GoldPercentage] = [None] * 5  # type: ignore
+        for player in getOrderPlayers(currFrame.players):
+            playerIndex = positionToIndex[player.position]
+            enemyPlayer = getPlayer("CHAOS", player.position, currFrame.players)
+            enemyPlayerIndex = playerIndex + 5
+            playerGoldTeam1 = player.getTotalItemsValue()
+            playerGoldTeam2 = enemyPlayer.getTotalItemsValue()
+            goldPercentages[playerIndex] = GoldPercentage(
+                totalGold, playerGoldTeam1, playerGoldTeam2
+            )
+            totalLevelTeam1 += player.level
+            totalLevelTeam2 += enemyPlayer.level
+            totalPlayersAliveTeam1 += not player.isDead
+            totalPlayersAliveTeam2 += not enemyPlayer.isDead
+            numOfPlayersWithBaronTeam1 += self._playerHasBaron[playerIndex]
+            numOfPlayersWithBaronTeam2 += self._playerHasBaron[enemyPlayerIndex]
+            numOfPlayersWithElderTeam1 += self._playerHasElder[playerIndex]
+            numOfPlayersWithElderTeam2 += self._playerHasElder[enemyPlayerIndex]
 
         # Tower kills
         towerKillsTeam1, towerKillsTeam2 = self._towersTaken
         # Dragon kills (whether a team has dragon soul or not)
         dragonsKilledTeam1, dragonsKillsTeam2 = self._dragonsTaken
         gameFeatures: Dict[FeatureKeys, GameStat] = {
-            FeatureKeys.TimeStamp: TimeStamp(timestamp=currFrame.timestamp),
+            # FeatureKeys.TimeStamp: TimeStamp(timestamp=currFrame.timestamp),
         }
         teamFeatures: Dict[FeatureKeys, TeamStat] = {
             FeatureKeys.GoldPercentageTop: goldPercentages[0],
@@ -243,6 +224,9 @@ class LiveParser:
             ),
             FeatureKeys.AlivePlayers: AlivePlayers(
                 totalPlayersAliveTeam1, totalPlayersAliveTeam2
+            ),
+            FeatureKeys.DragonSoul: TeamHasDragonSoul(
+                self._dragonSoulTaken == 1, self._dragonSoulTaken == 2
             ),
             FeatureKeys.TowerKills: TowerKills(towerKillsTeam1, towerKillsTeam2),
             FeatureKeys.DragonKills: DragonKills(dragonsKilledTeam1, dragonsKillsTeam2),
@@ -261,6 +245,43 @@ class LiveParser:
         }
         self._lastEvents = currFrame.events
         self._lastTimeStamp = currFrame.timestamp
-        return Sample(gameFeatures, teamFeatures)
+        return Sample(gameFeatures, teamFeatures, self._flipTeam, debug=True)
         # Maybe later...
         # - Inhibitor timers (how long until an inhibitor respawns) for each inhibitor
+
+
+def getOrderPlayers(players: List[Player]) -> List[Player]:
+    orderPlayers = []
+    for player in players:
+        if player.team == "ORDER":
+            orderPlayers += [player]
+    assert len(orderPlayers) == 5
+    return orderPlayers
+
+
+def getPlayer(
+    team: Literal["ORDER", "CHAOS"], position: str, players: List[Player]
+) -> Player:
+    for player in players:
+        if player.team == team and player.position == position:
+            return player
+    assert False
+
+
+team1TurretPrefix = "Turret_T1"
+team2TurretPrefix = "Turret_T2"
+
+
+def getTeamFromTurretName(turretName: str):
+    if turretName.startswith(team1TurretPrefix):
+        return "ORDER"
+    elif turretName.startswith(team2TurretPrefix):
+        return "CHAOS"
+    assert False
+
+
+def getTeamFromPlayerName(name: str, players: List[Player]) -> str:
+    for player in players:
+        if name == player.summonerName or name == player.riotIdGameName:
+            return player.team
+    assert False

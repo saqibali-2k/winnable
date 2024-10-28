@@ -2,7 +2,7 @@ import numpy as np
 import pickle
 
 
-def load_dataset(dataset_path, dataset_labels_path) -> tuple[np.array, np.array]:
+def load_dataset(dataset_path, dataset_labels_path) -> tuple[np.ndarray, np.ndarray]:
     X = np.load(dataset_path)
     y = np.load(dataset_labels_path)
     if isinstance(X, np.ndarray) and isinstance(y, np.ndarray):

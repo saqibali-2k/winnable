@@ -1,3 +1,5 @@
 .env
 /matches
-/__pycache__
+/models
+feature_importance.png
+*__pycache__

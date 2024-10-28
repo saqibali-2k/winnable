@@ -32,13 +32,17 @@ class TimeStamp(GameStat):
         self.val = timestamp
 
 
+# This is currently computing gold (NOT PERCENTAGE)
+# We saw some improvement in using this vs. percentage
 class GoldPercentage(TeamStat):
     """Gold % (player gold / total gold in game)"""
 
     def __init__(self, totalGold: int, player1Gold: int, player2Gold: int) -> None:
         super()
-        self.team1 = player1Gold / max(totalGold, 1)
-        self.team2 = player2Gold / max(totalGold, 1)
+        # self.team1 = player1Gold / max(totalGold, 1)
+        # self.team2 = player2Gold / max(totalGold, 1)
+        self.team1 = player1Gold
+        self.team2 = player2Gold
 
 
 class TotalTeamLevel(TeamStat):
