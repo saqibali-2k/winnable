@@ -1,0 +1,6 @@
+# This file is not yet in use, but we should put certain constants in here
+# It will be easier to change these when they change between patches
+[training]
+data_dir = "./matches"
+elder_spawn = 250
+baron_spawn = 300

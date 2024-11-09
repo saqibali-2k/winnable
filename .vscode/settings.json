@@ -1,0 +1,21 @@
+{
+    // "python.analysis.extraPaths": [
+    //     "src"
+    // ],
+    "pylint.args": [
+        "--disable=missing-function-docstring",
+        "--disable=missing-module-docstring",
+        "--disable=invalid-name",
+        "--disable=import-error",
+        "--disable=no-name-in-module",
+        "--disable=assignment-from-none"
+    ],
+    "editor.defaultFormatter": "ms-python.black-formatter",
+    "editor.formatOnSave": true,
+    "python.analysis.typeCheckingMode": "basic",
+    // "editor.renderWhitespace": "all",
+    // "python.formatting.provider": "black",
+    // "python.formatting.blackArgs": [
+    //     "--line-length=120"
+    // ],
+}
